@@ -27,57 +27,37 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __ZMQ_ADDRESS_HPP_INCLUDED__
-#define __ZMQ_ADDRESS_HPP_INCLUDED__
+#ifndef __ZMQ_RIO_ADDRESS_HPP_INCLUDED__
+#define __ZMQ_RIO_ADDRESS_HPP_INCLUDED__
+
+#if defined(ZMQ_HAVE_RIO)
 
 #include <string>
+#include "rio.hpp"
 
 namespace zmq
 {
-    class ctx_t;
-    class tcp_address_t;
-    class udp_address_t;
-#if !defined ZMQ_HAVE_WINDOWS && !defined ZMQ_HAVE_OPENVMS
-    class ipc_address_t;
-#endif
-#if defined ZMQ_HAVE_LINUX
-    class tipc_address_t;
-#endif
-#if defined ZMQ_HAVE_VMCI
-    class vmci_address_t;
-#endif
-#if defined ZMQ_HAVE_RIO
-    class rio_address_t;
-#endif
-    struct address_t {
-        address_t (const std::string &protocol_, const std::string &address_, ctx_t *parent_);
+    class rio_address_t
+    {
+        public:
+            rio_address_t ();
+            ~rio_address_t ();
 
-        ~address_t ();
+            // This functions sets up the address for RIO transport
+            int resolve (const char *path_);
 
-        const std::string protocol;
-        const std::string address;
-        ctx_t *parent;
+            // The opposite to resolve()
+            int to_string (std::string &addr_);
 
-        //  Protocol specific resolved address
-        union {
-            tcp_address_t *tcp_addr;
-            udp_address_t *udp_addr;
-#if !defined ZMQ_HAVE_WINDOWS && !defined ZMQ_HAVE_OPENVMS
-            ipc_address_t *ipc_addr;
-#endif
-#if defined ZMQ_HAVE_LINUX
-            tipc_address_t *tipc_addr;
-#endif
-#if defined ZMQ_HAVE_VMCI
-            vmci_address_t *vmci_addr;
-#endif
-#if defined ZMQ_HAVE_RIO
-            rio_address_t *rio_addr;
-#endif
-        } resolved;
+            uint16_t get_dest_id ();
+            uint16_t get_channel ();
 
-        int to_string (std::string &addr_) const;
+        private:
+            uint16_t dest_id;
+            uint16_t channel;
     };
 }
+
+#endif
 
 #endif

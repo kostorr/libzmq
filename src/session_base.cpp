@@ -39,6 +39,7 @@
 #include "tipc_connecter.hpp"
 #include "socks_connecter.hpp"
 #include "vmci_connecter.hpp"
+#include "rio_connecter.hpp"
 #include "pgm_sender.hpp"
 #include "pgm_receiver.hpp"
 #include "address.hpp"
@@ -446,6 +447,44 @@ void zmq::session_base_t::engine_error (
         zap_pipe->check_read ();
 }
 
+void zmq::session_base_t::rio_engine_error (
+        zmq::rio_engine_t::error_reason_t reason)
+{
+    //  Engine is dead. Let's forget about it.
+    engine = NULL;
+
+    //  Remove any half-done messages from the pipes.
+    if (pipe)
+        clean_pipes ();
+
+    zmq_assert (reason == rio_engine_t::connection_error
+             || reason == rio_engine_t::timeout_error
+             || reason == rio_engine_t::protocol_error);
+
+    switch (reason) {
+        case rio_engine_t::timeout_error:
+            std::cerr << "Timeout error" << std::endl;
+        case rio_engine_t::connection_error:
+            std::cerr << "Connection error" << std::endl;
+            //if (active)
+            //    reconnect ();
+            //else //Kostas: Just terminate for now
+                terminate ();
+            break;
+        case rio_engine_t::protocol_error:
+            std::cerr << "Protocol error" << std::endl;
+            terminate ();
+            break;
+    }
+
+    //  Just in case there's only a delimiter in the pipe.
+    if (pipe)
+        pipe->check_read ();
+
+    if (zap_pipe)
+        zap_pipe->check_read ();
+}
+
 void zmq::session_base_t::process_term (int linger_)
 {
     zmq_assert (!pending);
@@ -682,6 +721,16 @@ void zmq::session_base_t::start_connecting (bool wait_)
                 io_thread, this, options, addr, wait_);
         alloc_assert (connecter);
         launch_child (connecter);
+        return;
+    }
+#endif
+
+#if defined ZMQ_HAVE_RIO
+    if (addr->protocol == "rio") {
+        rio_connecter_t *connecter = new (std::nothrow) rio_connecter_t (
+                io_thread, this, options, addr, wait_);
+        alloc_assert (connecter);
+        launch_child (connecter); //Kostas: This will call process_plug trigerring the connecter
         return;
     }
 #endif

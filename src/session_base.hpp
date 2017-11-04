@@ -38,6 +38,7 @@
 #include "pipe.hpp"
 #include "socket_base.hpp"
 #include "stream_engine.hpp"
+#include "rio_engine.hpp"
 
 namespace zmq
 {
@@ -67,6 +68,7 @@ namespace zmq
         virtual void reset ();
         void flush ();
         void engine_error (zmq::stream_engine_t::error_reason_t reason);
+        void rio_engine_error (zmq::rio_engine_t::error_reason_t reason);
 
         //  i_pipe_events interface implementation.
         void read_activated (zmq::pipe_t *pipe_);

@@ -27,57 +27,55 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __ZMQ_ADDRESS_HPP_INCLUDED__
-#define __ZMQ_ADDRESS_HPP_INCLUDED__
+#include "rio_address.hpp"
 
+#if defined ZMQ_HAVE_RIO
+
+#include <climits>
 #include <string>
+#include <sstream>
+#include <iostream>
+#include "err.hpp"
 
-namespace zmq
+zmq::rio_address_t::rio_address_t ()
 {
-    class ctx_t;
-    class tcp_address_t;
-    class udp_address_t;
-#if !defined ZMQ_HAVE_WINDOWS && !defined ZMQ_HAVE_OPENVMS
-    class ipc_address_t;
-#endif
-#if defined ZMQ_HAVE_LINUX
-    class tipc_address_t;
-#endif
-#if defined ZMQ_HAVE_VMCI
-    class vmci_address_t;
-#endif
-#if defined ZMQ_HAVE_RIO
-    class rio_address_t;
-#endif
-    struct address_t {
-        address_t (const std::string &protocol_, const std::string &address_, ctx_t *parent_);
-
-        ~address_t ();
-
-        const std::string protocol;
-        const std::string address;
-        ctx_t *parent;
-
-        //  Protocol specific resolved address
-        union {
-            tcp_address_t *tcp_addr;
-            udp_address_t *udp_addr;
-#if !defined ZMQ_HAVE_WINDOWS && !defined ZMQ_HAVE_OPENVMS
-            ipc_address_t *ipc_addr;
-#endif
-#if defined ZMQ_HAVE_LINUX
-            tipc_address_t *tipc_addr;
-#endif
-#if defined ZMQ_HAVE_VMCI
-            vmci_address_t *vmci_addr;
-#endif
-#if defined ZMQ_HAVE_RIO
-            rio_address_t *rio_addr;
-#endif
-        } resolved;
-
-        int to_string (std::string &addr_) const;
-    };
+        dest_id = channel = 0;
 }
 
-#endif
+zmq::rio_address_t::~rio_address_t ()
+{
+}
+
+int zmq::rio_address_t::resolve (const char *name_)
+{
+    const char *delimiter = strchr (name_, ':');
+
+    std::string dest_id_str (name_, delimiter - name_);
+    std::string channel_str (delimiter + 1);
+    dest_id = stoul (dest_id_str);
+    channel = stoul (channel_str);
+
+    return 0;
+}
+
+int zmq::rio_address_t::to_string (std::string &addr_)
+{
+    std::stringstream s;
+    s << "rio://";
+    s << dest_id << ':' << channel;
+
+    addr_ = s.str ();
+    return 0;
+}
+
+uint16_t zmq::rio_address_t::get_dest_id ()
+{
+    return dest_id;
+}
+
+uint16_t zmq::rio_address_t::get_channel ()
+{
+    return channel;
+}
+
+#endif 

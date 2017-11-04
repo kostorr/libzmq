@@ -41,6 +41,10 @@
 #include "vmci_address.hpp"
 #endif
 
+#if defined ZMQ_HAVE_RIO
+#include "rio_address.hpp"
+#endif
+
 #include <string>
 #include <sstream>
 
@@ -89,6 +93,14 @@ zmq::address_t::~address_t ()
         }
     }
 #endif
+#if defined ZMQ_HAVE_RIO
+    else
+    if (protocol == "rio") {
+        if (resolved.rio_addr) {
+            LIBZMQ_DELETE(resolved.rio_addr);
+        }
+    }
+#endif
 }
 
 int zmq::address_t::to_string (std::string &addr_) const
@@ -122,6 +134,14 @@ int zmq::address_t::to_string (std::string &addr_) const
             return resolved.vmci_addr->to_string (addr_);
     }
 #endif
+#if defined ZMQ_HAVE_RIO
+    else
+    if (protocol == "rio") {
+        if (resolved.rio_addr)
+            return resolved.rio_addr->to_string (addr_);
+    }
+#endif
+
 
     if (!protocol.empty () && !address.empty ()) {
         std::stringstream s;

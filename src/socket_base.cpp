@@ -73,6 +73,10 @@
 #include "vmci_listener.hpp"
 #endif
 
+#if defined ZMQ_HAVE_RIO
+#include "rio_listener.hpp"
+#endif
+
 #ifdef ZMQ_HAVE_OPENPGM
 #include "pgm_socket.hpp"
 #endif
@@ -287,6 +291,9 @@ int zmq::socket_base_t::check_protocol (const std::string &protocol_)
 #endif
 #if defined ZMQ_HAVE_VMCI
     &&  protocol_ != "vmci"
+#endif
+#if defined ZMQ_HAVE_RIO
+    &&  protocol_ != "rio"
 #endif
     &&  protocol_ != "udp") {
         errno = EPROTONOSUPPORT;
@@ -675,6 +682,25 @@ int zmq::socket_base_t::bind (const char *addr_)
         return 0;
     }
 #endif
+#if defined ZMQ_HAVE_RIO
+    if (protocol == "rio") {
+        rio_listener_t *listener = new (std::nothrow) rio_listener_t (
+            io_thread, this, options);
+        alloc_assert (listener);
+        int rc = listener->set_address (address.c_str ());
+        if (rc != 0) {
+            LIBZMQ_DELETE(listener);
+            event_bind_failed (address, zmq_errno ());
+            return -1;
+        }
+        
+        listener->get_address (last_endpoint);
+
+        add_endpoint (last_endpoint.c_str(), (own_t *) listener, NULL);
+        options.connected = true;
+        return 0;
+    }
+#endif
 
     zmq_assert (false);
     return -1;
@@ -933,6 +959,18 @@ if (protocol  == "udp") {
         paddr->resolved.vmci_addr = new (std::nothrow) vmci_address_t (this->get_ctx ());
         alloc_assert (paddr->resolved.vmci_addr);
         int rc = paddr->resolved.vmci_addr->resolve (address.c_str ());
+        if (rc != 0) {
+            LIBZMQ_DELETE(paddr);
+            return -1;
+        }
+    }
+#endif
+#if defined ZMQ_HAVE_RIO
+    else
+    if (protocol == "rio") {
+        paddr->resolved.rio_addr = new (std::nothrow) rio_address_t ();
+        alloc_assert (paddr->resolved.rio_addr);
+        int rc = paddr->resolved.rio_addr->resolve (address.c_str ());
         if (rc != 0) {
             LIBZMQ_DELETE(paddr);
             return -1;

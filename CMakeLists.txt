@@ -21,6 +21,7 @@ set (pkg_config_libs_private "")
 
 option (WITH_OPENPGM "Build with support for OpenPGM" OFF)
 option (WITH_VMCI "Build with support for VMware VMCI socket" OFF)
+option (WITH_RIO "Build with support for RapidIO" OFF)
 
 if (APPLE)
     option (ZMQ_BUILD_FRAMEWORK "Build as OS X framework" ON)
@@ -584,7 +585,8 @@ endif ()
 
 include_directories (include ${CMAKE_CURRENT_BINARY_DIR})
 set (public_headers include/zmq.h
-                    include/zmq_utils.h)
+                    include/zmq_utils.h
+                    /opt/rapidio/rapidio_sw/common/include/rapidio_mport_dma.h)
 
 set (readme-docs AUTHORS
                 COPYING
@@ -606,6 +608,39 @@ if (WITH_VMCI)
     include_directories (${VMCI_INCLUDE_DIRS})
     list (APPEND cxx-sources vmci_address.cpp vmci_connecter.cpp vmci_listener.cpp vmci.cpp)
 endif (WITH_VMCI)
+
+#set(WITH_RIO ON)
+
+if (WITH_RIO)
+    message("-- RapidIO support enabled")
+   add_definitions(-DZMQ_HAVE_RIO)
+
+   find_path(RIO_INCLUDES rapidio_mport_sock.h rapidio_mport_mgmt.h rapidio_mport_dma.h
+       PATHS "/opt/rapidio/rapidio_sw/common/include"
+       NO_DEFAULT_PATH)
+
+   if(RIO_INCLUDES STREQUAL "RIO_INCLUDES-NOTFOUND")
+       message(FATAL_ERROR "ERROR: rapidio header files not found")
+   endif()
+
+   #message(${RIO_INCLUDES})
+
+   #set (RIO_INCLUDE_DIRS "/opt/rapidio/rapidio_sw/common/include")
+   include_directories(${RIO_INCLUDES})
+
+   set (RIO_LIBRARY_DIRS "/opt/rapidio/rapidio_sw/common/libs_a")
+   link_directories(${RIO_LIBRARY_DIRS})
+
+   find_library(RIO_LIB NAMES mport
+       PATHS ${RIO_LIBRARY_DIRS}
+       NO_DEFAULT_PATH
+       REQUIRED)
+
+   #message(RIO_LIB is ${RIO_LIB})
+
+   #set (OPTIONAL_LIBRARIES ${RIO_LIB})
+   list (APPEND cxx-sources rio_address.cpp rio_connecter.cpp rio_listener.cpp rio_engine.cpp rioh_mailbox.cpp)
+endif (WITH_RIO)
 
 if (ZMQ_HAVE_TIPC)
     add_definitions (-DZMQ_HAVE_TIPC)
@@ -766,6 +801,12 @@ target_link_libraries (libzmq ${CMAKE_THREAD_LIBS_INIT})
 if (SODIUM_FOUND)
   target_link_libraries (libzmq ${SODIUM_LIBRARIES})
 endif ()
+####
+if (WITH_RIO)
+    #target_link_directories (libzmq ${RIO_INCLUDE_LIBRARIES})
+    target_link_libraries (libzmq ${RIO_LIB})
+endif ()
+####
 if (HAVE_WS2_32)
   target_link_libraries (libzmq ws2_32)
 elseif (HAVE_WS2)
